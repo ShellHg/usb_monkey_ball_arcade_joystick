@@ -96,7 +96,7 @@ static const uint32_t LOOP_INTERVAL_US = 100;
 
 // HID send rate limit (If it goes beyond 1000Hz (1ms), packets will start getting dropped
 // at the interface level. This was fun to debug)
-static const uint32_t HID_SEND_INTERVAL_MS = 2;
+static const uint32_t HID_SEND_INTERVAL_MS = 2; // 500Hz
 
 // Joystick HID axis range (don't touch)
 static const int JOY_MIN = 0;

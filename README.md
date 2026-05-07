@@ -41,7 +41,7 @@ I am currently working on a schematic to visually show how everything is hooked 
 
 5. **Tanh Response Curve** - Applies a normalized tanh curve to the magnitude, giving finer control near center and faster response near the edges. The `TANH_K` value controls how tight the curve is around center. Controlled by `ENABLE_CURVE`.
 
-6. **HID Output** - The processed value is scaled to the [0 to 1023] HID axis range and sent to the host via USB at a rate-limited interval to prevent packet drops.
+6. **HID Output** - The processed value is scaled to the [0 to 1023] HID axis range and sent to the host via USB at a rate-limited interval to prevent packet drops. The polling rate of this joystick is set by default to 500Hz, which is already 5 times the polling rate of the original joystick on Naomi hardware.
 
 ### Button Debouncing
 
