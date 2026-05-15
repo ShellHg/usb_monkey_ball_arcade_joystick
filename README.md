@@ -6,14 +6,14 @@ I wrote this project in order to solve my personal Monkey Ball arcade cabinet bu
 ## My Hardware
 
 This is the hardware that this program was written and intended for. I don't really know how portable it is to other Arduino platforms, but at the very least, here is what I used:
-- Teensy 4.1 microcontroller
+- Arduino Pro Micro (5V version)
 - Sanwa JLK-GF2-EV analog 2-axis joystick
 - 5 arcade buttons (active LOW with internal pullup)
 - a Coin Mechanism (normally closed switch)
 
 ### Pin Map
 
-Refer to the table below to understand how each component in this build is connected to the Teensy 4.1 board pins:
+Refer to the table below to understand how each component in this build is connected to the Arduino Pro Micro board pins:
 
 | Button Function    | Arduino Pin | HID Button |
 |--------------------|-------------|------------|
@@ -22,10 +22,10 @@ Refer to the table below to understand how each component in this build is conne
 | SERVICE (X Button) | Pin 4       | HID #3     |
 | TEST (Y Button)    | Pin 5       | HID #4     |
 | SELECT (Coin Slot) | Pin 6       | HID #5     |
-| Joystick X Axis    | Pin 14 (A0) | Left Axis X|
-| Joystick Y Axis    | Pin 15 (A1) | Left Axis Y|
-| Joystick X VCC     | 3.3V Pin    | -          |
-| Joystick Y VCC     | 3.3V Pin    | -          |
+| Joystick X Axis    | A0          | Left Axis X|
+| Joystick Y Axis    | A1          | Left Axis Y|
+| Joystick X VCC     | VCC (5V)    | -          |
+| Joystick Y VCC     | VCC (5V)    | -          |
 
 I am currently working on a schematic to visually show how everything is hooked up, but that is not my expertise, so it may take a little bit... haha
 
@@ -57,7 +57,7 @@ Calibration values storing a variety of data with the physical hardware X and Y 
 
 ### Entering Calibration Mode
 
-Press the calibration button (`MULTITAP_BUTTON`, default: HOTKEY) 8 times in a row, holding the last press for 3 seconds. Each press must be within 1200ms of the previous one. The on-board LED will blink 3 times to confirm entry.
+Press the calibration button (`MULTITAP_BUTTON`, default: HOTKEY) 8 times in a row, holding the last press for 3 seconds. Each press must be within 1200ms of the previous one. The TX LED will blink 3 times to confirm entry.
 
 ### Calibration Steps
 
@@ -67,15 +67,15 @@ Press the calibration button (`MULTITAP_BUTTON`, default: HOTKEY) 8 times in a r
 4. Push the joystick fully RIGHT, then press the button
 5. Push the joystick fully LEFT, then press the button
 
-The LED blinks once after each step. After the last step, calibration is saved to EEPROM and the LED blinks 5 times.
+The TX LED blinks once after each step. After the last step, calibration is saved to EEPROM and the TX LED blinks 5 times.
 
 ### Aborting Calibration
 
-Hold the calibration button for 3 seconds at any step. The previous calibration will be restored from EEPROM. The LED blinks 2 times to confirm abort.
+Hold the calibration button for 3 seconds at any step. The previous calibration will be restored from EEPROM. The TX LED blinks 2 times to confirm abort.
 
 ## Configuration
 
-All configurable values are in `src/config.h`. Edit this file and re-flash the Teensy to apply changes.
+All configurable values are in `src/config.h`. Edit this file and re-flash the Pro Micro to apply changes.
 
 ### Processing Flags
 
@@ -141,8 +141,8 @@ The `DEFAULT_X_*` and `DEFAULT_Y_*` values are fallback calibration values used 
 
 ## Building
 
-This requires the Arduino IDE or VSCode/PlatformIO with Teensy 4.1 board support. Set USB Type to **Keyboard + Mouse + Joystick** under Tools in the Arduino IDE.
+This requires VSCode with the PlatformIO extension, or the Arduino IDE with the Arduino Pro Micro board package and the ArduinoJoystickLibrary installed.
 
-Use the Arduino IDE to build the project to produce a firmware .hex file, and then upload it to the microcontroller.
+I use the PlatformIO extension with VSCode which handles all of that for me and is automated. The `platformio.ini` file is already configured for the Arduino Pro Micro with all required libraries and build flags.
 
-I will have to update this file in the future to explain comprehensive steps for building. Please for now look up on Google or somewhere else how to build and upload. Currently, I use the PlatformIO extension with VSCode which handles all of that for me and is automated, so I don't remember the steps when that is not present
+I will have to update this file in the future to explain comprehensive steps for building. Please for now look up on Google or somewhere else how to build and upload when PlatformIO is not present
