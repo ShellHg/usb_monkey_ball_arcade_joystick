@@ -1,6 +1,6 @@
 //==================================================================================
-//  Monkey Ball Joystick - Arduino Teensy 4.1 to USB HID Gamepad
-//  Version: 2.6
+//  Monkey Ball Joystick - Arduino Pro Micro to USB HID Gamepad
+//  Version: 2.7
 //  Author: ShellHg
 //
 //  Arduino Pinout:
@@ -12,8 +12,8 @@
 //    | SERVICE (X Button) |        Pin 4 |      HID #3 |
 //    |    TEST (Y Button) |        Pin 5 |      HID #4 |
 //    | SELECT (Coin Slot) |        Pin 6 |      HID #5 |
-//    |    Joystick X Axis |       Pin 14 | Left Axis X |
-//    |    Joystick Y Axis |       Pin 15 | Left Axis Y |
+//    |    Joystick X Axis |           A0 | Left Axis X |
+//    |    Joystick Y Axis |           A1 | Left Axis Y |
 //    |--------------------|--------------|-------------|
 //
 //  Calibration (Persists in EEPROM):
@@ -24,13 +24,26 @@
 //==================================================================================
 
 #include <Arduino.h>
-#include "usb_joystick.h"
+#include <Joystick.h>
 #include <math.h>
 #include <EEPROM.h>
 
-#ifndef JOYSTICK_INTERFACE
-#error "USB Type does not include Joystick. Set Tools -> USB Type -> Keyboard + Mouse + Joystick."
-#endif
+// USB HID Joystick: 5 buttons, X and Y axes, manual send mode
+Joystick_ Joystick(JOYSTICK_DEFAULT_REPORT_ID, 
+                    JOYSTICK_TYPE_JOYSTICK,
+                    5,                          // 5 buttons
+                    0,                          // 0 hat switches
+                    true,                       // X Axis
+                    true,                       // Y Axis
+                    false,                      // No Z Axis
+                    false,                      // No Rx Axis
+                    false,                      // No Ry Axis
+                    false,                      // No Rz Axis
+                    false,                      // No Rudder
+                    false,                      // No Throttle
+                    false,                      // No Accelerator
+                    false,                      // No Brake
+                    false);                     // No Steering
 
 #include "config.h"
 
@@ -253,9 +266,9 @@ static void blinkLED(uint8_t n, uint16_t on_ms=120, uint16_t off_ms=120)
 {
     for (uint8_t i = 0; i < n; i++)
     {
-        digitalWrite(LED_PIN, HIGH);
+        TXLED1;
         delay(on_ms);
-        digitalWrite(LED_PIN, LOW);
+        TXLED0;
         delay(off_ms);
     }
 }
@@ -287,7 +300,7 @@ static void abortCalibration()
         Serial.println("Calibration aborted. Previous calibration restored");
     }
     blinkLED(2, 200, 200);
-    digitalWrite(LED_PIN, LOW);
+    TXLED0;
     calibration_step = CAL_DONE;
     mode = MODE_NORMAL;
 }
@@ -298,19 +311,25 @@ static void startCalibration()
     calibration_step = CAL_CENTER;
 
     // Freeze HID at center while calibrating
-    Joystick.X((JOY_MAX + JOY_MIN) / 2);
-    Joystick.Y((JOY_MAX + JOY_MIN) / 2);
+    Joystick.setXAxis((JOY_MAX + JOY_MIN) / 2);
+    Joystick.setYAxis((JOY_MAX + JOY_MIN) / 2);
 
     // Also release the multitap HID button to avoid stuck press
-    Joystick.button(MULTITAP_BUTTON_INDEX, 0);
-    Joystick.send_now();
+    Joystick.setButton(MULTITAP_BUTTON_INDEX, 0);
+    Joystick.sendState();
 
     if (SERIAL_OUTPUT)
     {
         Serial.println();
         Serial.println("ENTERING CALIBRATION MODE");
-        Serial.printf("hold %s for %d seconds at any step to abort\n", MULTITAP_BUTTON_NAME, MULTITAP_HOLD_SEC);
-        Serial.printf("Step 1/5: Let go of button, then press %s to capture CENTER\n", MULTITAP_BUTTON_NAME);
+        Serial.print("hold ");
+        Serial.print(MULTITAP_BUTTON_NAME);
+        Serial.print(" for ");
+        Serial.print(MULTITAP_HOLD_SEC);
+        Serial.println(" seconds at any step to abort");
+        Serial.print("Step 1/5: Let go of button, then press ");
+        Serial.print(MULTITAP_BUTTON_NAME);
+        Serial.println(" to capture CENTER");
     }
     blinkLED(3, 90, 90);
 }
@@ -327,8 +346,18 @@ static void finishCalibration()
     if (SERIAL_OUTPUT)
     {
         Serial.println("Saved calibration to EEPROM");
-        Serial.printf("X: L=%d  C=%d  R=%d\n", X_LEFT_RAW, X_CENTER_RAW, X_RIGHT_RAW);
-        Serial.printf("Y: U=%d  C=%d  D=%d\n", Y_UP_RAW, Y_CENTER_RAW, Y_DOWN_RAW);
+        Serial.print("X: L=");
+        Serial.print(X_LEFT_RAW);
+        Serial.print("  C=");
+        Serial.print(X_CENTER_RAW);
+        Serial.print("  R=");
+        Serial.println(X_RIGHT_RAW);
+        Serial.print("Y: U=");
+        Serial.print(Y_UP_RAW);
+        Serial.print("  C=");
+        Serial.print(Y_CENTER_RAW);
+        Serial.print("  D=");
+        Serial.println(Y_DOWN_RAW);
         Serial.println("EXITING CALIBRATION MODE");
     }
     blinkLED(5, 80, 80);
@@ -367,12 +396,8 @@ void setup()
         Serial.println("Monkey Ball Joystick - Written by ShellHg");
     }
 
-    pinMode(LED_PIN, OUTPUT);
-    digitalWrite(LED_PIN, LOW);
-
-    // Analog to Digital conversion configuration
-    analogReadResolution(12); // axis range read in from [0 to 4095]
-    analogReadAveraging(1); // readAveraged() will perform this step
+    TXLED0;
+    RXLED0;
 
     // Buttons with internal pullup (active LOW)
     pinMode(START_PIN, INPUT_PULLUP);
@@ -406,8 +431,10 @@ void setup()
         coin_button.debounce_time = COIN_DEBOUNCE_MS;
     }
 
-    // Joystick batching (send_now() to flush)
-    Joystick.useManualSend(true);
+    // Joystick axis range and manual send mode
+    Joystick.setXAxisRange(JOY_MIN, JOY_MAX);
+    Joystick.setYAxisRange(JOY_MIN, JOY_MAX);
+    Joystick.begin(false);
 
     // Load calibration from EEPROM
     if (!loadCalibration(X_LEFT_RAW, 
@@ -440,11 +467,25 @@ void setup()
 
     if (SERIAL_OUTPUT)
     {
-        Serial.printf("X: L=%d  C=%d  R=%d | Y: U=%d  C=%d  D=%d\n",
-                    X_LEFT_RAW, X_CENTER_RAW, X_RIGHT_RAW,
-                    Y_UP_RAW, Y_CENTER_RAW, Y_DOWN_RAW);
-        Serial.printf("To recalibrate, press %s %d times, holding the last for %d seconds\n",
-                    MULTITAP_BUTTON_NAME, MULTITAP_COUNT, MULTITAP_HOLD_SEC);
+        Serial.print("X: L=");
+        Serial.print(X_LEFT_RAW);
+        Serial.print("  C=");
+        Serial.print(X_CENTER_RAW);
+        Serial.print("  R=");
+        Serial.print(X_RIGHT_RAW);
+        Serial.print(" | Y: U=");
+        Serial.print(Y_UP_RAW);
+        Serial.print("  C=");
+        Serial.print(Y_CENTER_RAW);
+        Serial.print("  D=");
+        Serial.println(Y_DOWN_RAW);
+        Serial.print("To recalibrate, press ");
+        Serial.print(MULTITAP_BUTTON_NAME);
+        Serial.print(" ");
+        Serial.print(MULTITAP_COUNT);
+        Serial.print(" times, holding the last for ");
+        Serial.print(MULTITAP_HOLD_SEC);
+        Serial.println(" seconds");
     }
 }
 
@@ -474,8 +515,12 @@ static void checkForCalibration(uint32_t now, bool mt_pressed)
             hold_start_ms = now;
             if (SERIAL_OUTPUT)
             {
-                Serial.printf("%s press #%d detected. Hold for %d seconds to enter calibration mode...\n",
-                                MULTITAP_BUTTON_NAME, MULTITAP_COUNT, MULTITAP_HOLD_SEC);
+                Serial.print(MULTITAP_BUTTON_NAME);
+                Serial.print(" press #");
+                Serial.print(MULTITAP_COUNT);
+                Serial.print(" detected. Hold for ");
+                Serial.print(MULTITAP_HOLD_SEC);
+                Serial.println(" seconds to enter calibration mode...");
             }
         }
     }
@@ -519,12 +564,22 @@ static bool calibrationProcessing(uint32_t now, bool mt_pressed)
         return false;
     }
 
-    // Heartbeat LED blink on board while in calibration
+    // Heartbeat LED blink while in calibration on TX LED
     static uint32_t heartbeat_ms = 0;
+    static bool tx_led_state = false;
+    RXLED0;
     if (now - heartbeat_ms > 400)
     {
         heartbeat_ms = now;
-        digitalWrite(LED_PIN, !digitalRead(LED_PIN));
+        tx_led_state = !tx_led_state;
+        if (tx_led_state)
+        {
+            TXLED1;
+        }
+        else
+        {
+            TXLED0;
+        }
     }
 
     // Abort: hold the multitap button for MULTITAP_HOLD_SEC seconds during any calibration step
@@ -558,7 +613,10 @@ static bool calibrationProcessing(uint32_t now, bool mt_pressed)
                 Y_CENTER_RAW = readAveraged(PIN_Y, 32, 5);
                 if (SERIAL_OUTPUT)
                 {
-                    Serial.printf("Captured CENTER: Xc=%d  Yc=%d\n", X_CENTER_RAW, Y_CENTER_RAW);
+                    Serial.print("Captured CENTER: Xc=");
+                    Serial.print(X_CENTER_RAW);
+                    Serial.print("  Yc=");
+                    Serial.println(Y_CENTER_RAW);
                     Serial.println("Step 2/5: Push UP fully, then press the button.");
                 }
                 blinkLED(1, 50, 50);
@@ -570,7 +628,8 @@ static bool calibrationProcessing(uint32_t now, bool mt_pressed)
                 Y_UP_RAW = readAveraged(PIN_Y, 32, 5);
                 if (SERIAL_OUTPUT)
                 {
-                    Serial.printf("Captured Y UP: Yu=%d\n", Y_UP_RAW);
+                    Serial.print("Captured Y UP: Yu=");
+                    Serial.println(Y_UP_RAW);
                     Serial.println("Step 3/5: Push DOWN fully, then press the button.");
                 }
                 blinkLED(1, 50, 50);
@@ -582,7 +641,8 @@ static bool calibrationProcessing(uint32_t now, bool mt_pressed)
                 Y_DOWN_RAW = readAveraged(PIN_Y, 32, 5);
                 if (SERIAL_OUTPUT)
                 {
-                    Serial.printf("Captured Y DOWN: Yd=%d\n", Y_DOWN_RAW);
+                    Serial.print("Captured Y DOWN: Yd=");
+                    Serial.println(Y_DOWN_RAW);
                     Serial.println("Step 4/5: Push RIGHT fully, then press the button.");
                 }
                 blinkLED(1, 50, 50);
@@ -594,7 +654,8 @@ static bool calibrationProcessing(uint32_t now, bool mt_pressed)
                 X_RIGHT_RAW = readAveraged(PIN_X, 32, 5);
                 if (SERIAL_OUTPUT)
                 {
-                    Serial.printf("Captured X RIGHT: Xr=%d\n", X_RIGHT_RAW);
+                    Serial.print("Captured X RIGHT: Xr=");
+                    Serial.println(X_RIGHT_RAW);
                     Serial.println("Step 5/5: Push LEFT fully, then press the button.");
                 }
                 blinkLED(1, 50, 50);
@@ -606,7 +667,8 @@ static bool calibrationProcessing(uint32_t now, bool mt_pressed)
                 X_LEFT_RAW = readAveraged(PIN_X, 32, 5);
                 if (SERIAL_OUTPUT)
                 {
-                    Serial.printf("Captured X LEFT: Xl=%d\n", X_LEFT_RAW);
+                    Serial.print("Captured X LEFT: Xl=");
+                    Serial.println(X_LEFT_RAW);
                 }
                 finishCalibration();
                 break;
@@ -624,14 +686,14 @@ static bool calibrationProcessing(uint32_t now, bool mt_pressed)
     }
 
     // Keep HID centered and multitap button released while calibrating
-    Joystick.X((JOY_MAX + JOY_MIN) / 2);
-    Joystick.Y((JOY_MAX + JOY_MIN) / 2);
-    Joystick.button(MULTITAP_BUTTON_INDEX, 0);
+    Joystick.setXAxis((JOY_MAX + JOY_MIN) / 2);
+    Joystick.setYAxis((JOY_MAX + JOY_MIN) / 2);
+    Joystick.setButton(MULTITAP_BUTTON_INDEX, 0);
     static uint32_t last_calibration_send_ms = 0;
     if ((now - last_calibration_send_ms) >= HID_SEND_INTERVAL_MS)
     {
         last_calibration_send_ms = now;
-        Joystick.send_now();
+        Joystick.sendState();
     }
     return true;
 }
@@ -651,10 +713,13 @@ void loop()
     }
     last_loop_us = now_us;
 
+    // Set initial values to the center point of our ADC range
+    static float ema_x = 512.0f;
+    static float ema_y = 512.0f;
+
     // Read axes and apply processing effects
     // Use Exponential Moving Average to smooth out 
     // readings over time after applying the basic effects
-    static float ema_x = 2048.0f, ema_y = 2048.0f; // Set initial values to the center point of our ADC range
     int read_x = readAveraged(PIN_X);
     int read_y = readAveraged(PIN_Y);
     if (ENABLE_EMA)
@@ -696,19 +761,19 @@ void loop()
     // since that is handled separately for calibration mode
     if (start_changed && START_PIN != MULTITAP_BUTTON_PIN)
     {
-        Joystick.button(START_INDEX, start_button.stable == LOW ? 1 : 0);
+        Joystick.setButton(START_INDEX, start_button.stable == LOW ? 1 : 0);
     }
     if (hotkey_changed && HOTKEY_PIN != MULTITAP_BUTTON_PIN)
     {
-        Joystick.button(HOTKEY_INDEX, hotkey_button.stable == LOW ? 1 : 0);
+        Joystick.setButton(HOTKEY_INDEX, hotkey_button.stable == LOW ? 1 : 0);
     }
     if (test_changed && TEST_PIN != MULTITAP_BUTTON_PIN)
     {
-        Joystick.button(TEST_INDEX, test_button.stable == LOW ? 1 : 0);
+        Joystick.setButton(TEST_INDEX, test_button.stable == LOW ? 1 : 0);
     }
     if (service_changed && SERVICE_PIN != MULTITAP_BUTTON_PIN)
     {
-        Joystick.button(SERVICE_INDEX, service_button.stable == LOW ? 1 : 0);
+        Joystick.setButton(SERVICE_INDEX, service_button.stable == LOW ? 1 : 0);
     }
 
     // Coin button handling
@@ -723,7 +788,7 @@ void loop()
             coin_pulse_active = true;
             coin_pulse_start_ms = now;
             coin_last_accept_ms = now;
-            Joystick.button(COIN_INDEX, 1);
+            Joystick.setButton(COIN_INDEX, 1);
             if (SERIAL_OUTPUT)
             {
                 Serial.println("Coin accepted");
@@ -732,14 +797,14 @@ void loop()
         if (coin_pulse_active && (now - coin_pulse_start_ms) >= COIN_PULSE_MS)
         {
             coin_pulse_active = false;
-            Joystick.button(COIN_INDEX, 0);
+            Joystick.setButton(COIN_INDEX, 0);
         }
     }
     else
     {
         if (coin_button.update(digitalRead(COIN_PIN)))
         {
-            Joystick.button(COIN_INDEX, coin_button.stable == LOW ? 1 : 0);
+            Joystick.setButton(COIN_INDEX, coin_button.stable == LOW ? 1 : 0);
         }
     }
 
@@ -771,16 +836,33 @@ void loop()
     // Mirror debounced multitap button to HID report when not calibrating
     if (mt_changed)
     {
-        Joystick.button(MULTITAP_BUTTON_INDEX, multitap_button->stable == LOW ? 1 : 0);
+        Joystick.setButton(MULTITAP_BUTTON_INDEX, multitap_button->stable == LOW ? 1 : 0);
+    }
+
+    // RX LED lights when joystick is near the extremes or any button is held
+    bool coin_active = REAL_COIN_SLOT ? (coin_button.stable == HIGH) : (coin_button.stable == LOW);
+    bool any_button_held = (start_button.stable == LOW || hotkey_button.stable == LOW
+                            || test_button.stable == LOW || service_button.stable == LOW
+                            || coin_active);
+    bool joystick_active = (output_x < 100 || output_x > (JOY_MAX - 100)
+                            || output_y < 100 || output_y > (JOY_MAX - 100));
+    if (joystick_active || any_button_held)
+    {
+        RXLED1;
+    }
+    else
+    {
+        RXLED0;
     }
 
     // Send HID report with all changes during this loop
-    Joystick.X(output_x);
-    Joystick.Y(output_y);
+    Joystick.setXAxis(output_x);
+    Joystick.setYAxis(output_y);
     static uint32_t last_send_ms = 0;
     if ((now - last_send_ms) >= HID_SEND_INTERVAL_MS)
     {
         last_send_ms = now;
-        Joystick.send_now();
+        Joystick.sendState();
+        TXLED0;
     }
 }

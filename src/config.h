@@ -11,13 +11,13 @@ static const bool SERIAL_OUTPUT = false;
 // This is just a starting point for calibration. Use the calibration steps to change the numbers
 // in EEPROM which persists always. If something happens to the EEPROM or it gets wiped
 // these defaults act as a fallback
-static const int DEFAULT_X_LEFT   = 1770;
-static const int DEFAULT_X_CENTER = 2075;
-static const int DEFAULT_X_RIGHT  = 2370;
+static const int DEFAULT_X_LEFT   = 443;
+static const int DEFAULT_X_CENTER = 519;
+static const int DEFAULT_X_RIGHT  = 593;
 
-static const int DEFAULT_Y_UP     = 1760;
-static const int DEFAULT_Y_CENTER = 2050;
-static const int DEFAULT_Y_DOWN   = 2360;
+static const int DEFAULT_Y_UP     = 440;
+static const int DEFAULT_Y_CENTER = 513;
+static const int DEFAULT_Y_DOWN   = 590;
 
 // Processing flags
 static const bool ENABLE_CURVE      = true;
@@ -35,27 +35,27 @@ static const float TANH_K = 1.6f;
 static const float EMA_ALPHA = 0.9f;
 
 // Enable if your joystick has inverted axes
-static const bool  INVERT_X = false;
-static const bool  INVERT_Y = false;
+static const bool  INVERT_X = true;
+static const bool  INVERT_Y = true;
 
 // Defines for the pins on the Arduino
 const int PIN_X         = A0; // Pin 14
 const int PIN_Y         = A1; // Pin 15
 
 const int START_PIN     = 2;
-const int START_INDEX   = 1; // HID button #1
+const int START_INDEX   = 0; // HID button #1
 
 const int HOTKEY_PIN    = 3;
-const int HOTKEY_INDEX  = 2; // HID button #2
+const int HOTKEY_INDEX  = 1; // HID button #2
 
 const int SERVICE_PIN   = 4;
-const int SERVICE_INDEX = 3; // HID button #3
+const int SERVICE_INDEX = 2; // HID button #3
 
 const int TEST_PIN      = 5;
-const int TEST_INDEX    = 4; // HID button #4
+const int TEST_INDEX    = 3; // HID button #4
 
 const int COIN_PIN      = 6;
-const int COIN_INDEX    = 5; // HID button #5
+const int COIN_INDEX    = 4; // HID button #5
 
 // Defines for Debounce logic
 const uint32_t DEBOUNCE_MS = 1;
@@ -70,9 +70,6 @@ const uint32_t COIN_COOLDOWN_MS = 100;
 
 // How many axes samples to average per loop
 static const int NUM_SAMPLES = (ENABLE_SMOOTHING ? 4 : 1);
-
-// On-board LED Pin (which will blink during calibration mode)
-const int LED_PIN = 13;
 
 // Customize the button that is used for entering calibration mode
 const int    MULTITAP_BUTTON_PIN = HOTKEY_PIN;
